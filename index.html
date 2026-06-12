@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CineExtract — Movie Title Extractor</title>
+<link rel="icon" type="image/png" href="./favicon-light.png" media="(prefers-color-scheme: light)">
+<link rel="icon" type="image/png" href="./favicon-dark.png" media="(prefers-color-scheme: dark)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f5f7;--surface:#ffffff;--surface2:#f5f5f7;--surface3:#e8e8ed;
+  --text:#1d1d1f;--text2:#6e6e73;--text3:#aeaeb2;
+  --accent:#6a3fd6;--accent-hover:#5a2fc6;--accent-light:#f0ebff;
+  --success:#34c759;--error:#ff3b30;--warn:#ff9500;
+  --border:rgba(0,0,0,0.08);
+  --shadow-sm:0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md:0 4px 16px rgba(0,0,0,0.08);
+  --shadow-lg:0 20px 60px rgba(0,0,0,0.12);
+  --radius:16px;
+  --font:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  --font-serif:'Instrument Serif',Georgia,serif;
+  --font-mono:'SF Mono','Fira Code',monospace;
+}
+html{-webkit-font-smoothing:antialiased}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;line-height:1.5}
+a,button{transition:all 0.2s}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+button{cursor:pointer;font-family:var(--font)}
+
+/* API SCREEN */
+#api-screen{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;animation:fadeIn 0.4s ease}
+.api-card{background:var(--surface);border-radius:24px;padding:52px 48px;max-width:500px;width:90%;box-shadow:var(--shadow-lg);text-align:center;border:1px solid var(--border)}
+.api-logo{width:64px;height:64px;background:linear-gradient(135deg,#6a3fd6,#a855f7);border-radius:18px;display:flex;align-items:center;justify-content:center;margin:0 auto 28px;font-size:28px;box-shadow:0 8px 24px rgba(106,63,214,0.3)}
+.api-card h1{font-family:var(--font-serif);font-size:30px;font-weight:400;color:var(--text);margin-bottom:8px}
+.api-card p{font-size:15px;color:var(--text2);margin-bottom:28px;line-height:1.6}
+.input-row{position:relative;margin-bottom:12px}
+.key-input{width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:14px 44px 14px 16px;font-size:13px;font-family:var(--font-mono);color:var(--text);outline:none;transition:border-color 0.2s,box-shadow 0.2s}
+.key-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(106,63,214,0.12);background:#fff}
+.key-input::placeholder{font-family:var(--font);color:var(--text3)}
+.eye-btn{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:4px}
+.eye-btn:hover{color:var(--text2)}
+.btn-primary{width:100%;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:15px;font-size:15px;font-weight:500;cursor:pointer;margin-bottom:16px}
+.btn-primary:hover{background:var(--accent-hover);box-shadow:0 4px 12px rgba(106,63,214,0.3)}
+.btn-primary:disabled{background:var(--text3);cursor:not-allowed;box-shadow:none}
+.hint{font-size:12px;color:var(--text3);line-height:1.6}
+.hint a{color:var(--accent);text-decoration:none}
+.hint a:hover{text-decoration:underline}
+.api-key-link{display:inline-block;margin-bottom:16px;background:var(--accent-light);color:var(--accent);border:1px solid rgba(106,63,214,0.2);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;text-decoration:none;transition:all 0.2s}
+.api-key-link:hover{background:#e4d9ff;border-color:rgba(106,63,214,0.4)}
+.api-error{background:#fff2f2;border:1px solid rgba(255,59,48,0.2);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--error);margin-bottom:14px;text-align:left;display:none;line-height:1.5;word-break:break-all}
+.api-error.show{display:block}
+.provider-badge{display:inline-flex;align-items:center;gap:6px;background:var(--accent-light);color:var(--accent);font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;margin-bottom:20px}
+
+/* APP */
+#app{display:none;min-height:100vh;flex-direction:column}
+#app.visible{display:flex;animation:fadeIn 0.5s ease}
+nav{position:sticky;top:0;z-index:50;background:rgba(245,245,247,0.85);backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid var(--border);padding:0 28px;height:52px;display:flex;align-items:center;justify-content:space-between}
+.nav-brand{font-size:16px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px}
+.nav-dot{width:7px;height:7px;background:var(--accent);border-radius:50%}
+.nav-right{display:flex;align-items:center;gap:10px}
+.nav-badge{background:var(--accent-light);color:var(--accent);font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;display:none}
+.nav-badge.show{display:block}
+.btn-sm{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer}
+.btn-sm:hover{background:var(--surface3);color:var(--text)}
+.groq-tag{font-size:11px;font-weight:600;background:var(--accent-light);color:var(--accent);padding:3px 8px;border-radius:20px}
+
+/* HERO */
+.hero{padding:56px 28px 40px;text-align:center;max-width:640px;margin:0 auto}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin-bottom:14px}
+.hero h1{font-family:var(--font-serif);font-size:clamp(34px,5vw,52px);font-weight:400;color:var(--text);line-height:1.1;letter-spacing:-0.3px;margin-bottom:14px}
+.hero h1 em{font-style:italic;color:var(--accent)}
+.hero p{font-size:16px;color:var(--text2);line-height:1.6;font-weight:300}
+
+/* CONTAINER */
+.wrap{max-width:1100px;margin:0 auto;padding:0 28px 64px}
+
+/* DROP ZONE */
+.drop{background:var(--surface);border:2px dashed var(--surface3);border-radius:20px;padding:48px 28px;text-align:center;cursor:pointer;transition:all 0.25s;margin-bottom:28px}
+.drop:hover,.drop.over{border-color:var(--accent);background:#fafcff;box-shadow:0 0 0 4px rgba(106,63,214,0.06)}
+.drop-icon{width:52px;height:52px;background:var(--accent-light);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font-size:22px;transition:transform 0.2s}
+.drop:hover .drop-icon{transform:scale(1.06)}
+.drop-title{font-size:17px;font-weight:600;color:var(--text);margin-bottom:5px}
+.drop-sub{font-size:13px;color:var(--text2);margin-bottom:18px}
+.btn-browse{background:var(--text);color:#fff;border:none;border-radius:980px;padding:9px 20px;font-size:13px;font-weight:500;cursor:pointer}
+.btn-browse:hover{background:#3a3a3c}
+
+/* ACTION BAR */
+.action-bar{display:none;align-items:center;justify-content:space-between;margin-bottom:20px;gap:10px;flex-wrap:wrap}
+.action-bar.show{display:flex}
+.action-left{display:flex;align-items:center;gap:10px}
+.file-count{font-size:13px;color:var(--text2)}
+.file-count strong{color:var(--text);font-weight:600}
+.btn-clear{background:none;border:none;font-size:13px;color:var(--text3);cursor:pointer;padding:6px 2px}
+.btn-clear:hover{color:var(--error)}
+.action-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn-extract{background:var(--accent);color:#fff;border:none;border-radius:980px;padding:10px 22px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px}
+.btn-extract:hover{background:var(--accent-hover);box-shadow:0 4px 14px rgba(106,63,214,0.35)}
+.btn-extract:disabled{background:var(--text3);cursor:not-allowed;box-shadow:none}
+.btn-pause{background:var(--warn);color:#fff;border:none;border-radius:980px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;display:none;align-items:center;gap:6px}
+.btn-pause:hover{background:#e08800}
+.btn-pause.show{display:flex}
+.btn-stop{background:var(--error);color:#fff;border:none;border-radius:980px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;display:none;align-items:center;gap:6px}
+.btn-stop:hover{background:#d6302a}
+.btn-stop.show{display:flex}
+.btn-download{background:var(--surface);border:1px solid var(--border);border-radius:980px;padding:10px 18px;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;display:none;align-items:center;gap:6px;position:relative}
+.btn-download:hover{background:var(--surface3)}
+.btn-download.show{display:flex}
+.btn-copy-all{background:var(--surface);border:1px solid var(--border);border-radius:980px;padding:10px 18px;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;display:none}
+.btn-copy-all:hover{background:var(--surface3)}
+.btn-copy-all.show{display:block}
+
+/* Download dropdown */
+.dl-dropdown{position:absolute;top:calc(100% + 6px);right:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-md);padding:6px;min-width:150px;z-index:60;display:none}
+.dl-dropdown.open{display:block;animation:fadeIn 0.15s ease}
+.dl-item{display:block;width:100%;text-align:left;padding:8px 12px;border:none;background:none;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;border-radius:6px}
+.dl-item:hover{background:var(--accent-light);color:var(--accent)}
+
+/* PROGRESS */
+.prog{background:var(--surface);border-radius:var(--radius);padding:18px 22px;margin-bottom:22px;border:1px solid var(--border);display:none}
+.prog.show{display:block}
+.prog-header{display:flex;justify-content:space-between;margin-bottom:10px;align-items:center}
+.prog-label{font-size:13px;font-weight:500;color:var(--text2)}
+.prog-right{display:flex;align-items:center;gap:10px}
+.prog-pct{font-size:13px;font-weight:600;color:var(--accent)}
+.prog-track{background:var(--surface3);border-radius:4px;height:4px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--accent),#a855f7);border-radius:4px;transition:width 0.4s cubic-bezier(0.4,0,0.2,1);width:0}
+.prog-status{font-size:12px;color:var(--text3);margin-top:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prog-timer{font-size:12px;font-weight:600;color:var(--warn);font-family:var(--font-mono);display:none}
+.prog-timer.show{display:inline}
+.paused-badge{display:none;background:#fff4e5;color:var(--warn);border:1px solid rgba(255,149,0,0.25);border-radius:980px;padding:3px 10px;font-size:11px;font-weight:600}
+.paused-badge.show{display:inline}
+
+/* TABLE */
+.tbl-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+.tbl-title{font-size:19px;font-weight:600;color:var(--text);letter-spacing:-0.2px}
+.tbl-count{font-size:13px;color:var(--text3)}
+.tbl-wrap{background:var(--surface);border-radius:20px;border:1px solid var(--border);overflow:hidden;box-shadow:var(--shadow-sm)}
+.tbl-head{display:grid;grid-template-columns:250px 1fr;background:var(--surface2);border-bottom:1px solid var(--border);padding:10px 18px}
+.th{font-size:11px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:var(--text3)}
+.row{display:grid;grid-template-columns:250px 1fr;border-bottom:1px solid var(--border);transition:background 0.15s;animation:rowIn 0.3s ease both}
+.row:last-child{border-bottom:none}
+.row:hover{background:#fafafa}
+
+/* Thumb hover for large preview */
+.cell-img{padding:14px 18px;border-right:1px solid var(--border);display:flex;align-items:center;gap:11px}
+.thumb{width:60px;height:60px;border-radius:9px;overflow:hidden;background:var(--surface3);flex-shrink:0;box-shadow:var(--shadow-sm);cursor:pointer;position:relative;transition:transform 0.15s}
+.thumb:hover{transform:scale(1.05)}
+.thumb-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.15s;border-radius:9px}
+.thumb:hover .thumb-overlay{opacity:1}
+.thumb-overlay svg{width:18px;height:18px;fill:#fff}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.img-info{min-width:0;flex:1}
+.img-name{font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px;margin-bottom:2px}
+.img-meta{font-size:11px;color:var(--text3);margin-bottom:5px}
+
+/* Row-level options button */
+.row-opts-wrap{position:relative}
+.row-opts-btn{display:inline-flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:980px;padding:3px 9px 3px 8px;font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;transition:all 0.15s;white-space:nowrap}
+.row-opts-btn:hover{background:var(--accent-light);color:var(--accent);border-color:rgba(106,63,214,0.25)}
+.row-opts-btn svg{width:11px;height:11px;fill:currentColor;flex-shrink:0}
+.row-ctx-menu{position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);padding:5px;min-width:210px;z-index:9999;display:none}
+.row-ctx-menu.open{display:block;animation:fadeIn 0.12s ease}
+.row-ctx-label{font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--text3);padding:5px 10px 3px}
+.ctx-item{display:flex;align-items:center;gap:9px;width:100%;padding:8px 10px;border:none;background:none;font-size:13px;color:var(--text);cursor:pointer;border-radius:7px;text-align:left;line-height:1.3}
+.ctx-item:hover{background:var(--accent-light);color:var(--accent)}
+.ctx-item.danger:hover{background:#fff2f2;color:var(--error)}
+.ctx-item .ctx-icon{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+.ctx-sep{height:1px;background:var(--border);margin:4px 0}
+
+.cell-movies{padding:14px 18px;display:flex;flex-direction:column;justify-content:center;gap:5px}
+.movies-list{display:flex;flex-direction:column;gap:4px}
+
+/* Each pill row */
+.pill-row{display:flex;align-items:center;gap:5px;animation:fadeIn 0.2s ease}
+.pill{display:inline-flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--border);border-radius:980px;padding:3px 11px;font-size:13px;font-weight:500;color:var(--text);width:fit-content}
+.pill-num{min-width:18px;height:18px;background:var(--accent);color:#fff;border-radius:5px;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;padding:0 4px}
+
+/* Per-movie ⋯ options */
+.pill-menu-btn{background:none;border:none;padding:2px 5px;border-radius:4px;cursor:pointer;color:var(--text3);font-size:14px;line-height:1;flex-shrink:0}
+.pill-menu-btn:hover{background:var(--surface3);color:var(--text)}
+.pill-menu-wrap{position:relative;display:inline-flex;align-items:center}
+.pill-ctx-menu{position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);padding:5px;min-width:200px;z-index:9999;display:none}
+.pill-ctx-menu.open{display:block;animation:fadeIn 0.12s ease}
+
+.scanning{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text3);font-style:italic}
+.spin{width:11px;height:11px;border:1.5px solid var(--surface3);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite}
+.none{font-size:12px;color:var(--text3);font-style:italic}
+.err-cell{font-size:12px;color:var(--error);font-style:italic}
+
+/* Inline edit */
+.edit-row{display:flex;align-items:center;gap:6px;animation:fadeIn 0.15s ease}
+.edit-input{background:var(--surface2);border:1.5px solid var(--accent);border-radius:6px;padding:4px 8px;font-size:13px;font-family:var(--font);color:var(--text);outline:none;min-width:140px}
+.edit-save{background:var(--accent);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer}
+.edit-save:hover{background:var(--accent-hover)}
+.edit-cancel{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;color:var(--text2);cursor:pointer}
+.edit-cancel:hover{background:var(--surface3)}
+
+/* Add movie row */
+.add-movie-row{display:flex;align-items:center;gap:6px;margin-top:4px}
+.add-movie-input{background:var(--surface2);border:1.5px solid var(--border);border-radius:6px;padding:4px 8px;font-size:13px;font-family:var(--font);color:var(--text);outline:none;min-width:140px;transition:border-color 0.2s}
+.add-movie-input:focus{border-color:var(--accent);background:#fff}
+.add-movie-btn{background:var(--success);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer}
+.add-movie-btn:hover{background:#2db34a}
+
+/* SUMMARY */
+.summary{background:linear-gradient(135deg,var(--accent),#a855f7);border-radius:var(--radius);padding:20px 26px;margin-top:22px;display:none;align-items:center;justify-content:space-between;color:#fff;box-shadow:0 8px 24px rgba(106,63,214,0.3);gap:16px;flex-wrap:wrap}
+.summary.show{display:flex;animation:fadeIn 0.4s ease}
+.summary-text{font-size:15px;font-weight:500}
+.summary-text span{opacity:0.75;font-size:13px;display:block;margin-top:2px}
+.summary-actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn-csv-white{background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:980px;padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn-csv-white:hover{background:rgba(255,255,255,0.3)}
+
+/* UNIQUE MOVIES PANEL */
+.unique-panel{margin-top:22px;background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;box-shadow:var(--shadow-sm);display:none}
+.unique-panel.show{display:block;animation:fadeIn 0.3s ease}
+.unique-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface2)}
+.unique-title{font-size:14px;font-weight:600;color:var(--text)}
+.unique-count{font-size:12px;color:var(--text3)}
+.unique-list{padding:14px 18px;display:flex;flex-wrap:wrap;gap:7px;max-height:220px;overflow-y:auto}
+.unique-pill{display:inline-flex;align-items:center;gap:5px;background:var(--accent-light);border:1px solid rgba(106,63,214,0.15);border-radius:980px;padding:4px 12px;font-size:12px;font-weight:500;color:var(--accent)}
+
+/* EMPTY */
+.empty{text-align:center;padding:60px 28px;color:var(--text3)}
+.empty-icon{font-size:44px;margin-bottom:12px;opacity:0.35}
+.empty p{font-size:14px}
+
+/* TOAST */
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(16px);background:#1d1d1f;color:#fff;padding:11px 20px;border-radius:980px;font-size:14px;font-weight:500;z-index:200;opacity:0;transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1);pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* IMAGE PREVIEW MODAL */
+.img-modal{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.88);backdrop-filter:blur(14px);display:none;cursor:pointer}
+.img-modal.show{display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s ease}
+.img-modal-inner{position:relative;width:95vw;height:95vh;cursor:default;display:flex;border-radius:18px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,0.7)}
+.img-modal-close{position:absolute;top:14px;right:14px;width:34px;height:34px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.18);border-radius:50%;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:20;transition:background 0.15s}
+.img-modal-close:hover{background:rgba(255,255,255,0.25)}
+/* Left image panel — column layout: top counter, middle image, bottom name */
+.img-modal-left{flex:1;position:relative;background:#111;display:flex;flex-direction:column;overflow:hidden}
+/* Counter at top, centered — no overlap with anything */
+.img-modal-counter{align-self:center;margin-top:14px;flex-shrink:0;color:rgba(255,255,255,0.5);font-size:12px;font-weight:600;background:rgba(0,0,0,0.45);padding:4px 14px;border-radius:980px;pointer-events:none;white-space:nowrap;z-index:10}
+/* Image fills remaining space */
+.img-modal-imgwrap{flex:1;display:flex;align-items:center;justify-content:center;padding:12px 70px;overflow:hidden;min-height:0}
+.img-modal img{max-width:100%;max-height:100%;object-fit:contain;display:block;border-radius:6px}
+/* Filename at very bottom — own row, never overlaps */
+.img-modal-name{align-self:center;text-align:center;color:rgba(255,255,255,0.4);font-size:12px;padding:10px 24px 16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;max-width:80%}
+/* Nav buttons pinned to left/right, vertically centered within the full left panel */
+.img-nav-btn{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:50%;width:46px;height:46px;color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;transition:all 0.15s;line-height:1}
+.img-nav-btn:hover{background:rgba(255,255,255,0.28);border-color:rgba(255,255,255,0.45);transform:translateY(-50%) scale(1.08)}
+.img-nav-btn:disabled{opacity:0.18;cursor:not-allowed;transform:translateY(-50%)}
+#img-nav-prev{left:14px}
+#img-nav-next{right:14px}
+/* Right movie list panel */
+.img-modal-right{width:260px;min-width:240px;background:#161618;display:flex;flex-direction:column;flex-shrink:0;border-left:1px solid rgba(255,255,255,0.07)}
+.img-modal-movies-title{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.35);padding:20px 18px 12px;border-bottom:1px solid rgba(255,255,255,0.06);flex-shrink:0}
+.img-modal-movies-list{flex:1;overflow-y:auto;padding:12px 14px 20px;display:flex;flex-direction:column;gap:8px}
+.img-modal-movies-list::-webkit-scrollbar{width:4px}
+.img-modal-movies-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:2px}
+.img-modal-movie-pill{background:rgba(106,63,214,0.18);border:1px solid rgba(106,63,214,0.28);border-radius:10px;padding:8px 13px;font-size:13px;color:#d4c8ff;font-weight:500;display:flex;align-items:flex-start;gap:8px;white-space:normal;word-break:break-word;line-height:1.4}
+.img-modal-movie-num{min-width:20px;height:20px;background:rgba(168,85,247,0.4);border:1px solid rgba(168,85,247,0.4);color:#e9d5ff;border-radius:5px;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;padding:0 4px;margin-top:1px}
+.img-modal-no-movies{font-size:13px;color:rgba(255,255,255,0.28);font-style:italic;padding:8px 4px}
+
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes rowIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:3px}
+
+@media(max-width:640px){
+  .tbl-head,.row{grid-template-columns:1fr}
+  .cell-img{border-right:none;border-bottom:1px solid var(--border)}
+  .hero{padding:36px 16px 28px}
+  .wrap{padding:0 16px 48px}
+  nav{padding:0 16px}
+  .api-card{padding:36px 24px}
+  .summary{flex-direction:column;text-align:center}
+}
+</style>
+</head>
+<body>
+
+<!-- API SCREEN -->
+<div id="api-screen">
+  <div class="api-card">
+    <div class="api-logo">🎬</div>
+    <div class="provider-badge">⚡ Powered by Groq</div>
+    <h1>CineExtract</h1>
+    <p>Enter your Groq API key to begin. It's only stored for this session and clears when you close the tab.</p>
+    <a class="api-key-link" href="https://console.groq.com/keys" target="_blank">🔑 Get your free API key at console.groq.com/keys →</a>
+    <div class="api-error" id="api-error"></div>
+    <div class="input-row">
+      <input class="key-input" id="key-input" type="password" placeholder="gsk_..." autocomplete="off" spellcheck="false">
+      <button class="eye-btn" id="eye-btn">👁</button>
+    </div>
+    <button class="btn-primary" id="key-submit">Continue →</button>
+    <p class="hint">Your key never leaves your browser.</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <nav>
+    <div class="nav-brand"><div class="nav-dot"></div>CineExtract <span class="groq-tag">Groq</span></div>
+    <div class="nav-right">
+      <span class="nav-badge" id="nav-badge">0 movies</span>
+      <button class="btn-sm" id="change-key">Change Key</button>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <div class="eyebrow">Powered by Groq Vision</div>
+    <h1>Extract <em>every</em> movie from your screenshots</h1>
+    <p>Reddit threads, Twitter conversations, posters, lists — paste them all in and get a clean movie list instantly.</p>
+  </div>
+
+  <div class="wrap">
+    <div class="drop" id="drop">
+      <div class="drop-icon">🎞️</div>
+      <div class="drop-title">Drop your screenshots here</div>
+      <div class="drop-sub">JPG, PNG, WEBP — upload all at once</div>
+      <button class="btn-browse" id="browse-btn">Choose Files</button>
+      <input type="file" id="file-input" multiple accept="image/*" style="display:none">
+    </div>
+
+    <div class="action-bar" id="action-bar">
+      <div class="action-left">
+        <span class="file-count"><strong id="file-count">0</strong> screenshots</span>
+        <button class="btn-clear" id="clear-btn">Clear all</button>
+      </div>
+      <div class="action-right">
+        <button class="btn-copy-all" id="copy-all-btn">📋 Copy All</button>
+        <div style="position:relative">
+          <button class="btn-download" id="download-btn">⬇ Download <span style="font-size:10px;opacity:0.6">▼</span></button>
+          <div class="dl-dropdown" id="dl-dropdown">
+            <button class="dl-item" id="dl-csv">📄 CSV (.csv)</button>
+            <button class="dl-item" id="dl-txt">📝 Text (.txt)</button>
+            <button class="dl-item" id="dl-json">📦 JSON (.json)</button>
+          </div>
+        </div>
+        <button class="btn-pause" id="pause-btn">⏸ Pause</button>
+        <button class="btn-stop" id="stop-btn">⏹ Stop</button>
+        <button class="btn-extract" id="extract-btn"><span id="ext-icon">⚡</span><span id="ext-label">Extract Movies</span></button>
+      </div>
+    </div>
+
+    <div class="prog" id="prog">
+      <div class="prog-header">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="prog-label" id="prog-label">Scanning with Groq Vision</span>
+          <span class="paused-badge" id="paused-badge">⏸ PAUSED</span>
+        </div>
+        <div class="prog-right">
+          <span class="prog-timer" id="prog-timer"></span>
+          <span class="prog-pct" id="prog-pct">0%</span>
+        </div>
+      </div>
+      <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
+      <div class="prog-status" id="prog-status">Starting…</div>
+    </div>
+
+    <div id="results" style="display:none">
+      <div class="tbl-header">
+        <div class="tbl-title">Extracted Movies</div>
+        <div class="tbl-count" id="tbl-count"></div>
+      </div>
+      <div class="tbl-wrap">
+        <div class="tbl-head">
+          <div class="th">Screenshot</div>
+          <div class="th">Movies Detected</div>
+        </div>
+        <div id="tbl-body"></div>
+      </div>
+
+      <!-- Unique movies panel -->
+      <div class="unique-panel" id="unique-panel">
+        <div class="unique-header">
+          <div class="unique-title">🎯 Unique Movies (deduplicated)</div>
+          <div class="unique-count" id="unique-count"></div>
+        </div>
+        <div class="unique-list" id="unique-list"></div>
+      </div>
+
+      <div class="summary" id="summary">
+        <div class="summary-text">
+          <span id="sum-main">Extraction complete</span>
+          <span id="sum-sub"></span>
+        </div>
+        <div class="summary-actions">
+          <button class="btn-csv-white" id="csv-bottom-csv">⬇ CSV</button>
+          <button class="btn-csv-white" id="csv-bottom-txt">⬇ TXT</button>
+          <button class="btn-csv-white" id="csv-bottom-json">⬇ JSON</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<footer style="position:fixed;bottom:0;left:0;right:0;text-align:center;padding:10px 28px;font-size:12px;color:var(--text3);background:rgba(245,245,247,0.9);backdrop-filter:blur(10px);border-top:1px solid var(--border);z-index:200">
+  Made with ❤️ by <a href="https://www.linkedin.com/in/work-bhupenderverma" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:500">Bhupender Verma</a>
+</footer>
+<!-- Image Preview Modal -->
+<div class="img-modal" id="img-modal" onclick="closeImgModal(event)">
+  <div class="img-modal-inner" onclick="event.stopPropagation()">
+    <button class="img-modal-close" onclick="document.getElementById('img-modal').classList.remove('show');clearInterval(_modalPollInterval)">✕</button>
+    <!-- Left: image panel -->
+    <div class="img-modal-left">
+      <!-- Counter: top-center -->
+      <div class="img-modal-counter" id="img-modal-counter"></div>
+      <!-- Image: fills middle -->
+      <div class="img-modal-imgwrap">
+        <img id="img-modal-img" src="" alt="">
+      </div>
+      <!-- Filename: bottom-center -->
+      <div class="img-modal-name" id="img-modal-name"></div>
+      <!-- Nav buttons: pinned left/right at 50% height -->
+      <button class="img-nav-btn" id="img-nav-prev" onclick="navigateModal(-1)" title="Previous (←)">&#8592;</button>
+      <button class="img-nav-btn" id="img-nav-next" onclick="navigateModal(1)" title="Next (→)">&#8594;</button>
+    </div>
+    <!-- Right: movie list -->
+    <div class="img-modal-right" id="img-modal-right">
+      <div class="img-modal-movies-title">🎬 Extracted Movies</div>
+      <div class="img-modal-movies-list" id="img-modal-movies-list"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let apiKey = sessionStorage.getItem('gkey_groq');
+let files = [], rows = [], busy = false, paused = false, stopped = false;
+let pauseResolve = null;
+let timerInterval = null;
+
+const id = s => document.getElementById(s);
+
+// Init
+if (apiKey) showApp();
+
+// Eye toggle
+id('eye-btn').onclick = () => {
+  const inp = id('key-input');
+  const hide = inp.type === 'password';
+  inp.type = hide ? 'text' : 'password';
+  id('eye-btn').textContent = hide ? '🙈' : '👁';
+};
+
+id('key-input').addEventListener('keydown', e => { if (e.key === 'Enter') submitKey(); });
+id('key-submit').onclick = submitKey;
+
+async function submitKey() {
+  const val = id('key-input').value.trim();
+  if (!val) { shake(id('key-input')); return; }
+  if (!val.startsWith('gsk_')) {
+    showApiError('Groq keys start with "gsk_" — double check your key.');
+    return;
+  }
+  id('key-submit').disabled = true;
+  id('key-submit').textContent = 'Verifying…';
+  try {
+    const resp = await fetch('https://api.groq.com/openai/v1/models', {
+      headers: { 'Authorization': 'Bearer ' + val }
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      showApiError(err?.error?.message || 'Invalid API key. Please check and try again.');
+      id('key-submit').disabled = false;
+      id('key-submit').textContent = 'Continue →';
+      return;
+    }
+  } catch(e) {
+    showApiError('Network error. Check your internet connection.');
+    id('key-submit').disabled = false;
+    id('key-submit').textContent = 'Continue →';
+    return;
+  }
+  apiKey = val;
+  sessionStorage.setItem('gkey_groq', val);
+  showApp();
+}
+
+function showApiError(msg) {
+  const el = id('api-error');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+function showApp() {
+  id('api-screen').style.display = 'none';
+  id('app').classList.add('visible');
+}
+
+id('change-key').onclick = () => {
+  sessionStorage.removeItem('gkey_groq');
+  apiKey = '';
+  id('key-input').value = '';
+  id('api-error').classList.remove('show');
+  id('app').classList.remove('visible');
+  id('app').style.display = '';
+  id('api-screen').style.display = 'flex';
+  id('key-submit').disabled = false;
+  id('key-submit').textContent = 'Continue →';
+};
+
+// Files
+id('browse-btn').onclick = e => { e.stopPropagation(); id('file-input').click(); };
+id('drop').onclick = () => id('file-input').click();
+id('file-input').onchange = e => addFiles(e.target.files);
+id('drop').addEventListener('dragover', e => { e.preventDefault(); id('drop').classList.add('over'); });
+id('drop').addEventListener('dragleave', () => id('drop').classList.remove('over'));
+id('drop').addEventListener('drop', e => {
+  e.preventDefault();
+  id('drop').classList.remove('over');
+  addFiles(e.dataTransfer.files);
+});
+
+function addFiles(list) {
+  const imgs = Array.from(list).filter(f => f.type.startsWith('image/'));
+  if (!imgs.length) { showToast('Please upload image files'); return; }
+  const seen = new Set(files.map(f => f.name + f.size));
+  const fresh = imgs.filter(f => !seen.has(f.name + f.size));
+  fresh.forEach(f => {
+    files.push(f);
+    rows.push({ file: f, name: f.name, url: URL.createObjectURL(f), movies: [], status: 'pending' });
+  });
+  if (fresh.length) showToast(fresh.length + ' file' + (fresh.length > 1 ? 's' : '') + ' added');
+  sync();
+}
+
+function sync() {
+  id('file-count').textContent = files.length;
+  const ab = id('action-bar');
+  files.length ? ab.classList.add('show') : ab.classList.remove('show');
+  if (!files.length) {
+    id('results').style.display = 'none';
+    id('summary').classList.remove('show');
+    id('unique-panel').classList.remove('show');
+  }
+}
+
+id('clear-btn').onclick = () => {
+  if (busy) return;
+  rows.forEach(r => URL.revokeObjectURL(r.url));
+  files = []; rows = [];
+  id('tbl-body').innerHTML = '';
+  id('results').style.display = 'none';
+  id('summary').classList.remove('show');
+  id('unique-panel').classList.remove('show');
+  id('nav-badge').classList.remove('show');
+  id('download-btn').classList.remove('show');
+  id('copy-all-btn').classList.remove('show');
+  id('file-input').value = '';
+  sync();
+};
+
+// ---- Pause / Stop / Resume ----
+id('pause-btn').onclick = () => {
+  if (!busy) return;
+  if (paused) {
+    paused = false;
+    id('pause-btn').innerHTML = '⏸ Pause';
+    id('paused-badge').classList.remove('show');
+    id('prog-label').textContent = 'Scanning with Groq Vision';
+    if (pauseResolve) { pauseResolve(); pauseResolve = null; }
+  } else {
+    paused = true;
+    id('pause-btn').innerHTML = '▶ Resume';
+    id('paused-badge').classList.add('show');
+    id('prog-label').textContent = 'Paused';
+  }
+};
+
+id('stop-btn').onclick = () => {
+  if (!busy) return;
+  stopped = true;
+  paused = false;
+  if (pauseResolve) { pauseResolve(); pauseResolve = null; }
+  showToast('Stopping after current scan…');
+};
+
+function waitIfPaused() {
+  return new Promise(resolve => {
+    if (!paused) { resolve(); return; }
+    pauseResolve = resolve;
+    const check = setInterval(() => {
+      if (!paused) { clearInterval(check); resolve(); }
+    }, 200);
+  });
+}
+
+// ---- Extract ----
+id('extract-btn').onclick = extract;
+
+async function extract() {
+  if (busy || !files.length) return;
+  busy = true; paused = false; stopped = false;
+  id('extract-btn').disabled = true;
+  id('ext-icon').textContent = '⚡';
+  id('ext-label').textContent = 'Scanning…';
+  id('pause-btn').classList.add('show');
+  id('stop-btn').classList.add('show');
+  rows.forEach(r => { if (r.status !== 'skip') { r.movies = []; r.status = 'pending'; } });
+  id('tbl-body').innerHTML = '';
+  id('results').style.display = 'block';
+  id('prog').classList.add('show');
+  id('summary').classList.remove('show');
+  id('unique-panel').classList.remove('show');
+  id('download-btn').classList.remove('show');
+  id('copy-all-btn').classList.remove('show');
+  rows.forEach((r, i) => renderRow(r, i));
+
+  let total = 0;
+  for (let i = 0; i < rows.length; i++) {
+    if (stopped) break;
+    await waitIfPaused();
+    if (stopped) break;
+
+    const r = rows[i];
+    if (r.status === 'done') { total += r.movies.length; continue; } // skip already-done (rescan won't hit this)
+    const pct = Math.round((i / rows.length) * 100);
+    id('prog-fill').style.width = pct + '%';
+    id('prog-pct').textContent = pct + '%';
+    id('prog-status').textContent = 'Scanning ' + r.name;
+    r.status = 'scanning';
+    updateRow(r, i);
+
+    try {
+      r.movies = dedupeMovies(await callGroq(r.file));
+      r.status = 'done';
+      total += r.movies.length;
+    } catch(e) {
+      r.status = 'error';
+      r.errorMsg = e.message;
+    }
+    updateRow(r, i);
+    updateNavBadge();
+    const done = rows.filter(x => x.status !== 'pending' && x.status !== 'scanning').length;
+    id('tbl-count').textContent = done + '/' + rows.length + ' scanned · ' + total + ' titles';
+
+    // Wait between requests — 0 if no rate limit needed, but keeping 500ms as safety
+    if (i < rows.length - 1 && !stopped) {
+      await waitWithCountdown(500); // 0.5s between requests (Groq vision handles it fast)
+    }
+  }
+
+  id('prog-fill').style.width = '100%';
+  id('prog-pct').textContent = stopped ? 'Stopped' : '100%';
+  id('prog-status').textContent = stopped ? 'Stopped by user' : 'Complete! ✓';
+  setTimeout(() => id('prog').classList.remove('show'), 1400);
+  clearInterval(timerInterval);
+  id('prog-timer').classList.remove('show');
+
+  busy = false;
+  id('extract-btn').disabled = false;
+  id('ext-icon').textContent = '⚡';
+  id('ext-label').textContent = 'Extract Again';
+  id('pause-btn').classList.remove('show');
+  id('stop-btn').classList.remove('show');
+  id('paused-badge').classList.remove('show');
+  id('pause-btn').innerHTML = '⏸ Pause';
+
+  const ok = rows.filter(r => r.status === 'done').length;
+  id('sum-main').textContent = total + ' movies extracted';
+  id('sum-sub').textContent = 'from ' + ok + ' of ' + rows.length + ' screenshots';
+  id('summary').classList.add('show');
+  id('download-btn').classList.add('show');
+  id('copy-all-btn').classList.add('show');
+  renderUniquePanel();
+  showToast(stopped ? 'Stopped. ' + total + ' movies found so far.' : 'Done! ' + total + ' movies found');
+}
+
+// Rescan single row
+async function rescanRow(i) {
+  const r = rows[i];
+  if (!r) return;
+  r.movies = [];
+  r.status = 'scanning';
+  updateRow(r, i);
+  id('prog').classList.add('show');
+  id('prog-status').textContent = 'Rescanning ' + r.name;
+  try {
+    r.movies = dedupeMovies(await callGroq(r.file));
+    r.status = 'done';
+  } catch(e) {
+    r.status = 'error';
+    r.errorMsg = e.message;
+  }
+  updateRow(r, i);
+  id('prog').classList.remove('show');
+  updateNavBadge();
+  renderUniquePanel();
+  showToast('Rescan complete for ' + r.name);
+}
+
+function updateNavBadge() {
+  const all = getAllUniqueMovies();
+  id('nav-badge').textContent = all.length + ' unique movies';
+  id('nav-badge').classList.add('show');
+}
+
+// Countdown timer for wait
+async function waitWithCountdown(ms) {
+  if (ms <= 0) return;
+  const secs = Math.ceil(ms / 1000);
+  const timer = id('prog-timer');
+  timer.classList.add('show');
+  let remaining = secs;
+  timer.textContent = 'Next in ' + remaining + 's';
+  return new Promise(resolve => {
+    timerInterval = setInterval(() => {
+      remaining--;
+      if (remaining <= 0) {
+        clearInterval(timerInterval);
+        timer.classList.remove('show');
+        resolve();
+      } else {
+        timer.textContent = 'Next in ' + remaining + 's';
+      }
+    }, 1000);
+    // Also resolve after ms regardless
+    setTimeout(() => {
+      clearInterval(timerInterval);
+      timer.classList.remove('show');
+      resolve();
+    }, ms);
+  });
+}
+
+// Groq API
+async function callGroq(file, retries = 4) {
+  const b64 = await toB64(file);
+  const mime = file.type || 'image/jpeg';
+  const url = 'https://api.groq.com/openai/v1/chat/completions';
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + apiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'image_url',
+              image_url: { url: 'data:' + mime + ';base64,' + b64 }
+            },
+            {
+              type: 'text',
+              text: 'Look at this screenshot. It could be a Reddit thread, Twitter/X post, movie poster, list, or conversation where people mention movies or TV shows. Extract ALL movie and TV show titles visible or mentioned — including titles mentioned casually in comments or replies. Ignore usernames, handles, hashtags, timestamps, subreddit names, app UI elements. Return ONLY a raw JSON array of strings. No markdown, no explanation, no code fences. Example: ["Inception", "The Godfather", "Parasite"]. If no movies found, return []'
+            }
+          ]
+        }],
+        max_tokens: 800,
+        temperature: 0.1
+      })
+    });
+
+    if (resp.status === 429 || resp.status === 503) {
+      const errData = await resp.json().catch(() => ({}));
+      const msg = errData?.error?.message || '';
+      const retryMatch = msg.match(/retry in ([\d.]+)s/i);
+      const waitMs = retryMatch ? Math.ceil(parseFloat(retryMatch[1]) * 1000) : Math.min(10000, 2000 * (attempt + 1));
+      const waitSecs = Math.ceil(waitMs / 1000);
+      id('prog-status').textContent = `Rate limited — waiting ${waitSecs}s (attempt ${attempt+1}/${retries})`;
+      await waitWithCountdown(waitMs);
+      continue;
+    }
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err?.error?.message || 'HTTP ' + resp.status);
+    }
+
+    const data = await resp.json();
+    const text = data.choices?.[0]?.message?.content || '[]';
+    const clean = text.replace(/```json\n?|```\n?/g, '').trim();
+    try {
+      const parsed = JSON.parse(clean);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      const m = clean.match(/"[^"]+"/g);
+      return m ? m.map(s => s.replace(/"/g, '')) : [];
+    }
+  }
+  throw new Error('Rate limit persists. Wait a minute and try again.');
+}
+
+// ---- Deduplication (per-row) ----
+function dedupeMovies(arr) {
+  const seen = new Set();
+  return arr.filter(m => {
+    const key = m.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+// Global unique (across all rows)
+function getAllUniqueMovies() {
+  const seen = new Set();
+  const result = [];
+  rows.forEach(r => {
+    (r.movies || []).forEach(m => {
+      const key = m.trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(m);
+      }
+    });
+  });
+  return result.sort((a, b) => a.localeCompare(b));
+}
+
+function renderUniquePanel() {
+  const movies = getAllUniqueMovies();
+  if (!movies.length) return;
+  id('unique-count').textContent = movies.length + ' unique titles';
+  id('unique-list').innerHTML = movies.map(m =>
+    `<span class="unique-pill">🎬 ${esc(m)}</span>`
+  ).join('');
+  id('unique-panel').classList.add('show');
+}
+
+// ---- Row Rendering ----
+function renderRow(r, i) {
+  const el = document.createElement('div');
+  el.className = 'row';
+  el.id = 'row' + i;
+  el.style.animationDelay = Math.min(i * 25, 250) + 'ms';
+  el.innerHTML = rowHTML(r, i);
+  id('tbl-body').appendChild(el);
+  attachRowEvents(i);
+}
+
+function updateRow(r, i) {
+  const el = id('row' + i);
+  if (el) {
+    el.innerHTML = rowHTML(r, i);
+    attachRowEvents(i);
+  }
+}
+
+function rowHTML(r, i) {
+  let moviesHTML;
+  if (r.status === 'scanning') {
+    moviesHTML = `<span class="scanning"><span class="spin"></span>Scanning with Groq…</span>`;
+  } else if (r.status === 'error') {
+    moviesHTML = `<span class="err-cell">⚠ ${esc(r.errorMsg)}</span>`;
+  } else if (r.status === 'done' && !r.movies.length) {
+    moviesHTML = `<span class="none">No movies detected — use Options to add manually or rescan</span>`;
+  } else if (r.status === 'done') {
+    moviesHTML = `<div class="movies-list" id="movies-list-${i}">` +
+      r.movies.map((m, mi) => pillRowHTML(m, i, mi)).join('') +
+      `</div>
+      <div id="add-input-${i}" style="display:none" class="add-movie-row">
+        <input class="add-movie-input" id="add-inp-${i}" placeholder="Movie or series name…" onkeydown="if(event.key==='Enter')addMovie(${i});if(event.key==='Escape')hideAddInput(${i})">
+        <button class="add-movie-btn" onclick="addMovie(${i})">Add</button>
+        <button class="edit-cancel" onclick="hideAddInput(${i})">Cancel</button>
+      </div>`;
+  } else {
+    moviesHTML = `<span class="none" style="color:var(--surface3)">Waiting…</span>`;
+  }
+
+  const meta = r.status === 'done'
+    ? r.movies.length + ' title' + (r.movies.length !== 1 ? 's' : '')
+    : r.status;
+
+  // Row-level options menu
+  const rowMenu = `
+    <div class="row-opts-wrap">
+      <button class="row-opts-btn" onclick="toggleRowMenu(event,this,'row-menu-${i}')" title="Options">
+        <svg viewBox="0 0 16 16"><circle cx="2" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="14" cy="8" r="1.5"/></svg>
+      </button>
+      <div class="row-ctx-menu" id="row-menu-${i}" style="display:none">
+        <div class="row-ctx-label">This Image</div>
+        <button class="ctx-item" onclick="closeAllCtx();openImgModal('${r.url}','${esc(r.name)}',${i})"><span class="ctx-icon">🔍</span>Preview image large</button>
+        <button class="ctx-item" onclick="closeAllCtx();rescanRow(${i})"><span class="ctx-icon">🔄</span>Rescan with Groq</button>
+        <div class="ctx-sep"></div>
+        <div class="row-ctx-label">Manage Movies</div>
+        <button class="ctx-item" onclick="closeAllCtx();showAddInput(${i})"><span class="ctx-icon">➕</span>Add movie / series</button>
+        <div class="ctx-sep"></div>
+        <button class="ctx-item danger" onclick="closeAllCtx();deleteRow(${i})"><span class="ctx-icon">🗑</span>Remove this image</button>
+      </div>
+    </div>`;
+
+  return `
+    <div class="cell-img">
+      <div class="thumb" onclick="openImgModal('${r.url}','${esc(r.name)}',${i})" title="Click to preview large">
+        <img src="${r.url}" alt="${esc(r.name)}" loading="lazy">
+        <div class="thumb-overlay"><svg viewBox="0 0 24 24"><path d="M15 3h6v6h-2V5h-4V3zM3 9V3h6v2H5v4H3zm12 12v-2h4v-4h2v6h-6zM3 15h2v4h4v2H3v-6z"/></svg></div>
+      </div>
+      <div class="img-info">
+        <div class="img-name" title="${esc(r.name)}">${esc(r.name)}</div>
+        <div class="img-meta">${meta}</div>
+        ${rowMenu}
+      </div>
+    </div>
+    <div class="cell-movies">${moviesHTML}</div>`;
+}
+
+function pillRowHTML(m, rowIdx, movieIdx) {
+  const mSafe = esc(m).replace(/'/g, "\\'");
+  return `
+    <div class="pill-row" id="pill-${rowIdx}-${movieIdx}">
+      <div class="pill-menu-wrap">
+        <div class="pill"><span class="pill-num">${movieIdx + 1}</span>${esc(m)}</div>
+        <button class="pill-menu-btn" onclick="toggleCtxMenu(event,this,'ctx-${rowIdx}-${movieIdx}')" title="Options"><svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor"><circle cx="2" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="14" cy="8" r="1.5"/></svg></button>
+        <div class="pill-ctx-menu" id="ctx-${rowIdx}-${movieIdx}">
+          <div class="row-ctx-label">Search</div>
+          <button class="ctx-item" onclick="closeAllCtx();openGoogleSearch('${mSafe}')"><span class="ctx-icon">🔍</span>Google Search</button>
+          <button class="ctx-item" onclick="closeAllCtx();openIMDB('${mSafe}')"><span class="ctx-icon">🎬</span>Search on IMDB</button>
+          <div class="ctx-sep"></div>
+          <div class="row-ctx-label">Edit</div>
+          <button class="ctx-item" onclick="closeAllCtx();startEditMovie(${rowIdx},${movieIdx})"><span class="ctx-icon">✏️</span>Edit name</button>
+          <button class="ctx-item" onclick="closeAllCtx();copyOneMovie('${mSafe}')"><span class="ctx-icon">📋</span>Copy name</button>
+          <div class="ctx-sep"></div>
+          <button class="ctx-item danger" onclick="closeAllCtx();deleteMovie(${rowIdx},${movieIdx})"><span class="ctx-icon">🗑</span>Delete this movie</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function attachRowEvents(i) {
+  // Close ctx menus on outside click is handled globally
+}
+
+// ---- Context menu ----
+// ---- Context menu (portal to body so nothing clips it) ----
+let _activeMenu = null;
+
+function _openMenu(btn, menuId) {
+  const menu = id(menuId);
+  if (!menu) return;
+
+  // Move menu to body if not already there
+  if (menu.parentElement !== document.body) {
+    document.body.appendChild(menu);
+  }
+
+  const rect = btn.getBoundingClientRect();
+  menu.style.display = 'block';
+  menu.style.position = 'fixed';
+  menu.style.zIndex = '99999';
+  menu.style.top = (rect.bottom + 5) + 'px';
+  menu.style.left = rect.left + 'px';
+  menu.style.right = 'auto';
+  menu.style.bottom = 'auto';
+  menu.classList.add('open');
+  _activeMenu = menu;
+
+  // After paint, clamp to viewport
+  requestAnimationFrame(() => {
+    const mr = menu.getBoundingClientRect();
+    if (mr.right > window.innerWidth - 8) {
+      menu.style.left = Math.max(8, rect.right - mr.width) + 'px';
+    }
+    if (mr.bottom > window.innerHeight - 8) {
+      menu.style.top = Math.max(8, rect.top - mr.height - 5) + 'px';
+    }
+  });
+}
+
+function toggleCtxMenu(e, btn, menuId) {
+  e.stopPropagation();
+  const menu = id(menuId);
+  const wasOpen = menu && menu.classList.contains('open');
+  closeAllCtx();
+  if (!wasOpen) _openMenu(btn, menuId);
+}
+
+function toggleRowMenu(e, btn, menuId) {
+  e.stopPropagation();
+  const menu = id(menuId);
+  const wasOpen = menu && menu.classList.contains('open');
+  closeAllCtx();
+  if (!wasOpen) _openMenu(btn, menuId);
+}
+function closeAllCtx() {
+  document.querySelectorAll('.pill-ctx-menu.open,.row-ctx-menu.open').forEach(m => {
+    m.classList.remove('open');
+    m.style.display = 'none';
+  });
+  _activeMenu = null;
+  const dd = id('dl-dropdown');
+  if (dd) dd.classList.remove('open');
+}
+document.addEventListener('click', closeAllCtx);
+
+// ---- Movie actions ----
+function openGoogleSearch(name) {
+  const q = encodeURIComponent(name);
+  window.open(`https://www.google.com/search?client=safari&rls=en&q=${q}&ie=UTF-8&oe=UTF-8&channel=45`, '_blank');
+}
+function openIMDB(name) {
+  const q = encodeURIComponent(name);
+  window.open(`https://www.imdb.com/find?q=${q}&s=tt`, '_blank');
+}
+function copyOneMovie(name) {
+  navigator.clipboard.writeText(name).then(() => showToast('Copied: ' + name));
+}
+
+function deleteMovie(rowIdx, movieIdx) {
+  rows[rowIdx].movies.splice(movieIdx, 1);
+  updateRow(rows[rowIdx], rowIdx);
+  updateNavBadge();
+  renderUniquePanel();
+}
+
+function deleteRow(rowIdx) {
+  if (!confirm('Remove "' + rows[rowIdx].name + '" from the list?')) return;
+  URL.revokeObjectURL(rows[rowIdx].url);
+  rows.splice(rowIdx, 1);
+  files.splice(rowIdx, 1);
+  // Re-render all rows with updated indices
+  id('tbl-body').innerHTML = '';
+  rows.forEach((r, i) => renderRow(r, i));
+  id('file-count').textContent = files.length;
+  if (!files.length) {
+    id('results').style.display = 'none';
+    id('unique-panel').classList.remove('show');
+    id('action-bar').classList.remove('show');
+  }
+  updateNavBadge();
+  renderUniquePanel();
+  showToast('Image removed');
+}
+
+function startEditMovie(rowIdx, movieIdx) {
+  const pillRow = id(`pill-${rowIdx}-${movieIdx}`);
+  if (!pillRow) return;
+  const currentName = rows[rowIdx].movies[movieIdx];
+  pillRow.innerHTML = `
+    <div class="edit-row">
+      <input class="edit-input" id="edit-inp-${rowIdx}-${movieIdx}" value="${esc(currentName)}" onkeydown="if(event.key==='Enter')saveEditMovie(${rowIdx},${movieIdx});if(event.key==='Escape')cancelEditMovie(${rowIdx},${movieIdx})">
+      <button class="edit-save" onclick="saveEditMovie(${rowIdx},${movieIdx})">Save</button>
+      <button class="edit-cancel" onclick="cancelEditMovie(${rowIdx},${movieIdx})">Cancel</button>
+    </div>`;
+  setTimeout(() => { const inp = id(`edit-inp-${rowIdx}-${movieIdx}`); if(inp){inp.focus();inp.select();} }, 50);
+}
+
+function saveEditMovie(rowIdx, movieIdx) {
+  const inp = id(`edit-inp-${rowIdx}-${movieIdx}`);
+  if (!inp) return;
+  const val = inp.value.trim();
+  if (!val) return;
+  rows[rowIdx].movies[movieIdx] = val;
+  updateRow(rows[rowIdx], rowIdx);
+  updateNavBadge();
+  renderUniquePanel();
+  showToast('Updated: ' + val);
+}
+
+function cancelEditMovie(rowIdx, movieIdx) {
+  updateRow(rows[rowIdx], rowIdx);
+}
+
+function showAddInput(i) {
+  const el = id(`add-input-${i}`);
+  if (el) { el.style.display = 'flex'; id(`add-inp-${i}`)?.focus(); }
+}
+function hideAddInput(i) {
+  const el = id(`add-input-${i}`);
+  if (el) el.style.display = 'none';
+}
+function addMovie(i) {
+  const inp = id(`add-inp-${i}`);
+  if (!inp) return;
+  const val = inp.value.trim();
+  if (!val) return;
+  rows[i].movies.push(val);
+  if (rows[i].status !== 'done') rows[i].status = 'done';
+  updateRow(rows[i], i);
+  updateNavBadge();
+  renderUniquePanel();
+  showToast('Added: ' + val);
+}
+
+// ---- Image Preview Modal ----
+let currentModalRowIdx = -1;
+let _modalPollInterval = null;
+
+function _startModalPolling() {
+  clearInterval(_modalPollInterval);
+  _modalPollInterval = setInterval(() => {
+    if (!id('img-modal').classList.contains('show')) {
+      clearInterval(_modalPollInterval);
+      return;
+    }
+    if (currentModalRowIdx < 0 || currentModalRowIdx >= rows.length) return;
+    const r = rows[currentModalRowIdx];
+    // Only re-render if still in progress
+    if (r.status === 'scanning' || r.status === 'pending') {
+      renderModalContent(currentModalRowIdx);
+    } else {
+      // Done or error — do one final render then stop polling
+      renderModalContent(currentModalRowIdx);
+      clearInterval(_modalPollInterval);
+    }
+  }, 600);
+}
+
+function openImgModal(url, name, rowIdx) {
+  currentModalRowIdx = (rowIdx !== undefined) ? rowIdx : -1;
+  renderModalContent(currentModalRowIdx, url, name);
+  id('img-modal').classList.add('show');
+  _startModalPolling();
+}
+
+function renderModalContent(rowIdx, url, name) {
+  // If called from navigation, derive url/name from rows
+  if (rowIdx >= 0 && rowIdx < rows.length) {
+    const r = rows[rowIdx];
+    url = r.url;
+    name = r.name;
+  }
+  id('img-modal-img').src = url;
+  id('img-modal-name').textContent = name;
+
+  // Movie list panel
+  const listEl = id('img-modal-movies-list');
+  if (rowIdx >= 0 && rowIdx < rows.length) {
+    const r = rows[rowIdx];
+    if (r.movies && r.movies.length) {
+      listEl.innerHTML = r.movies.map((m, i) => `<div class="img-modal-movie-pill"><span class="img-modal-movie-num">${i + 1}</span>${esc(m)}</div>`).join('');
+    } else if (r.status === 'scanning') {
+      listEl.innerHTML = `<div class="img-modal-no-movies"><span class="spin" style="width:10px;height:10px;border-width:1.5px;border-color:rgba(255,255,255,0.15);border-top-color:#a855f7;display:inline-block;margin-right:6px;vertical-align:middle"></span>Extracting movies…</div>`;
+    } else if (r.status === 'pending') {
+      listEl.innerHTML = `<div class="img-modal-no-movies">Waiting to scan…</div>`;
+    } else {
+      listEl.innerHTML = `<div class="img-modal-no-movies">No movies detected</div>`;
+    }
+    id('img-modal-right').style.display = '';
+  } else {
+    listEl.innerHTML = `<div class="img-modal-no-movies">No data</div>`;
+    id('img-modal-right').style.display = '';
+  }
+
+  // Counter and nav buttons
+  const total = rows.length;
+  if (total > 0 && rowIdx >= 0) {
+    id('img-modal-counter').textContent = (rowIdx + 1) + ' / ' + total;
+    id('img-nav-prev').disabled = rowIdx <= 0;
+    id('img-nav-next').disabled = rowIdx >= total - 1;
+  } else {
+    id('img-modal-counter').textContent = '';
+    id('img-nav-prev').disabled = true;
+    id('img-nav-next').disabled = true;
+  }
+}
+
+function navigateModal(dir) {
+  const next = currentModalRowIdx + dir;
+  if (next < 0 || next >= rows.length) return;
+  currentModalRowIdx = next;
+  renderModalContent(currentModalRowIdx);
+  _startModalPolling();
+}
+
+function closeImgModal(e) {
+  if (e.target === id('img-modal')) {
+    id('img-modal').classList.remove('show');
+    clearInterval(_modalPollInterval);
+  }
+}
+document.addEventListener('keydown', e => {
+  if (!id('img-modal').classList.contains('show')) return;
+  if (e.key === 'Escape') { id('img-modal').classList.remove('show'); clearInterval(_modalPollInterval); }
+  if (e.key === 'ArrowLeft') navigateModal(-1);
+  if (e.key === 'ArrowRight') navigateModal(1);
+});
+
+// ---- Copy All ----
+id('copy-all-btn').onclick = () => {
+  const movies = getAllUniqueMovies();
+  if (!movies.length) { showToast('No movies yet'); return; }
+  navigator.clipboard.writeText(movies.join('\n')).then(() => {
+    showToast(movies.length + ' movies copied to clipboard!');
+  });
+};
+
+// ---- Download Dropdown ----
+id('download-btn').onclick = (e) => {
+  e.stopPropagation();
+  id('dl-dropdown').classList.toggle('open');
+};
+id('dl-csv').onclick = () => { closeAllCtx(); downloadFile('csv'); };
+id('dl-txt').onclick = () => { closeAllCtx(); downloadFile('txt'); };
+id('dl-json').onclick = () => { closeAllCtx(); downloadFile('json'); };
+id('csv-bottom-csv').onclick = () => downloadFile('csv');
+id('csv-bottom-txt').onclick = () => downloadFile('txt');
+id('csv-bottom-json').onclick = () => downloadFile('json');
+
+function downloadFile(format) {
+  const date = new Date().toISOString().slice(0, 10);
+  let content, mime, ext;
+
+  if (format === 'csv') {
+    const lines = [['Screenshot', 'Movie Title']];
+    rows.forEach(r => {
+      if (!r.movies.length) lines.push([r.name, '']);
+      else r.movies.forEach(m => lines.push([r.name, m]));
+    });
+    content = lines.map(l => l.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
+    mime = 'text/csv;charset=utf-8';
+    ext = 'csv';
+  } else if (format === 'txt') {
+    const unique = getAllUniqueMovies();
+    content = unique.join('\n');
+    mime = 'text/plain;charset=utf-8';
+    ext = 'txt';
+  } else if (format === 'json') {
+    const data = {
+      exported: new Date().toISOString(),
+      uniqueMovies: getAllUniqueMovies(),
+      byScreenshot: rows.map(r => ({ file: r.name, movies: r.movies, status: r.status }))
+    };
+    content = JSON.stringify(data, null, 2);
+    mime = 'application/json;charset=utf-8';
+    ext = 'json';
+  }
+
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([content], { type: mime })),
+    download: 'movies-' + date + '.' + ext
+  });
+  a.click();
+  showToast('Downloaded as .' + ext);
+}
+
+// ---- Utils ----
+function toB64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function shake(el) {
+  el.style.borderColor = 'var(--error)';
+  el.style.boxShadow = '0 0 0 3px rgba(255,59,48,0.15)';
+  setTimeout(() => { el.style.borderColor = ''; el.style.boxShadow = ''; }, 1200);
+}
+let toastT;
+function showToast(msg) {
+  const el = id('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => el.classList.remove('show'), 2800);
+}
+</script>
+</body>
+</html>
